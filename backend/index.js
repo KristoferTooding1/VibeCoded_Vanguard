@@ -69,12 +69,61 @@ app.post('/api/calculate', (req, res) => {
     }
 });
 
+// 4. PERSIST CALCULATION TO POSTGRESQL DATABASE
+app.post('/api/save-calculation', async (req, res) => {
+    try {
+        const { 
+            initialDeposit, 
+            monthlyContribution, 
+            annualReturn, 
+            years, 
+            totalValue, 
+            totalPrincipal, 
+            totalInterest 
+        } = req.body;
+
+        // Perform asynchronous insert transaction into PostgreSQL via Supabase client
+        const { data, error } = await supabase
+            .from('calculations')
+            .insert([
+                {
+                    initial_deposit: parseFloat(initialDeposit) || 0,
+                    monthly_contribution: parseFloat(monthlyContribution) || 0,
+                    annual_return: parseFloat(annualReturn) || 0,
+                    years: parseInt(years) || 0,
+                    total_value: parseFloat(totalValue) || 0,
+                    total_principal: parseFloat(totalPrincipal) || 0,
+                    total_interest: parseFloat(totalInterest) || 0
+                }
+            ])
+            .select(); // Returns the newly created row packet
+
+        if (error) {
+            throw error;
+        }
+
+        // Return affirmative status payload back to React
+        res.status(201).json({
+            success: true,
+            message: "Data matrix successfully persisted to PostgreSQL storage matrix.",
+            record: data[0]
+        });
+
+    } catch (error) {
+        console.error("DATABASE ACCESS LAYER INTERRUPTION:", error.message);
+        res.status(500).json({ 
+            error: "Failed to persist calculations to cloud infrastructure.",
+            details: error.message 
+        });
+    }
+});
+
 // Utility helper to prevent long decimal floating-point errors
 function roundToCent(num) {
     return Math.round((num + Number.EPSILON) * 100) / 100;
 }
 
 app.listen(PORT, () => {
-    console.log(`\n🚀 QUANT SERVER INITIALIZED`);
-    console.log(`📡 Listening on: http://localhost:${PORT}`);
+    console.log(`\n QUANT SERVER INITIALIZED`);
+    console.log(` Listening on: http://localhost:${PORT}`);
 });

@@ -63,7 +63,44 @@ function App() {
         console.error('API Pipeline Interruption:', error);
         setIsCalculating(false);
       });
-  }, [initialDeposit, monthlyContribution, annualReturn, years]); // Fires dynamically on any input mutation
+  }, [initialDeposit, monthlyContribution, annualReturn, years]); 
+  
+  const savePortfolio = () => {
+    // Strip symbols out of the outputs to send clean numbers back to the backend
+    const cleanNumeric = (formattedString) => {
+      return parseFloat(formattedString.replace(/[^0-9,-]/g, '').replace(',', '.')) || 0;
+    };
+
+    const savePayload = {
+      initialDeposit: parseFloat(initialDeposit) || 0,
+      monthlyContribution: parseFloat(monthlyContribution) || 0,
+      annualReturn: parseFloat(annualReturn) || 0,
+      years: parseInt(years) || 0,
+      totalValue: cleanNumeric(outputs.totalValue),
+      totalPrincipal: cleanNumeric(outputs.totalPrincipal),
+      totalInterest: cleanNumeric(outputs.totalInterest)
+    };
+
+    fetch('http://localhost:5050/api/save-calculation', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(savePayload),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error('Database insertion pipeline rejection');
+        return res.json();
+      })
+      .then((data) => {
+        alert('Portfolio state successfully committed to PostgreSQL database!');
+        console.log('Database Log Packet:', data.record);
+      })
+      .catch((error) => {
+        console.error('Database Sync Error:', error);
+        alert('Database write failure. Check server console logs.');
+      });
+  };// Fires dynamically on any input mutation
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-neutral-100 flex flex-col justify-between selection:bg-red-600 selection:text-white">
@@ -165,6 +202,15 @@ function App() {
               <span className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">Compound Return Yield</span>
               <span className="text-xl font-bold font-mono text-red-600">{outputs.totalInterest}</span>
             </div>
+            <div className="mt-8 relative z-10">
+            <button
+              type="button"
+              onClick={savePortfolio}
+              className="w-full bg-neutral-100 hover:bg-white text-black font-bold uppercase tracking-wider text-xs py-3.5 px-4 rounded-md transition-all duration-200 shadow-md transform active:scale-[0.99] hover:shadow-red-600/10 hover:border hover:border-neutral-200"
+            >
+              Secure Portfolio Projection to Database
+            </button>
+          </div>
           </div>
           
           {/* Decorative grid lines backplate */}
